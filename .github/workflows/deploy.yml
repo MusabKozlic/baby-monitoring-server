@@ -54,6 +54,7 @@ jobs:
           script: |
             cd /var/www/baby-monitoring-server
             npm ci
+            npx prisma generate
             pm2 delete baby-monitoring-server || true
             pm2 start dist/main.js --name baby-monitoring-server
             pm2 save
