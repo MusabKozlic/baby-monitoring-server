@@ -44,7 +44,6 @@ jobs:
             echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" > .env
             echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
             echo "PORT=3000" >> .env
-            cp .env dist/.env
 
       - name: Restart app on EC2
         uses: appleboy/ssh-action@v1.1.0
