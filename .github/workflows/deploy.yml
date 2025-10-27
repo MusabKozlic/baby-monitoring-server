@@ -16,13 +16,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install dependencies
-        run: npm ci --no-fund --silent
-
-      - name: Generate Prisma client
-        run: npx prisma generate
+        run: npm ci
 
       - name: Build NestJS app
         run: npm run build
@@ -33,14 +30,10 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
-          source: |
-            dist/**
-            package.json
-            package-lock.json
-            prisma/**
+          source: "dist/**,package.json,package-lock.json,prisma/**"
           target: "/var/www/baby-monitoring-server"
 
-      - name: Create .env file on EC2
+      - name: Add .env file on EC2
         uses: appleboy/ssh-action@v1.1.0
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -52,27 +45,16 @@ jobs:
             echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
             echo "PORT=3000" >> .env
 
-      - name: Deploy and restart app on EC2
+      - name: Restart app on EC2
         uses: appleboy/ssh-action@v1.1.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
-          command_timeout: 60m
           script: |
             cd /var/www/baby-monitoring-server
-            # Clean install ensures no missing deps
-            npm ci --no-fund --silent
-
-            # Ensure Prisma schema exists and client is generated
-            if [ -f "prisma/schema.prisma" ]; then
-              npx prisma generate --schema=prisma/schema.prisma
-              npx prisma migrate deploy
-            else
-              echo "⚠️ WARNING: prisma/schema.prisma not found, skipping migration!"
-            fi
-
-            # Restart app with zero downtime if possible
-            pm2 restart baby-monitoring-server || pm2 start dist/main.js --name baby-monitoring-server
+            npm ci
+            npx prisma generate
+            pm2 delete baby-monitoring-server || true
+            pm2 start dist/main.js --name baby-monitoring-server
             pm2 save
-            pm2 status
